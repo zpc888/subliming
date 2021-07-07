@@ -1,0 +1,31 @@
+---
+# ansible-playbook -K playbook-install-jdk8.yml
+- hosts: mycat_servers
+  remote_user: root
+# sudo: yes
+  vars:
+    download_folder: /opt
+    java_name: "{{download_folder}}/jdk1.8.0_291"
+    java_archive: "{{download_folder}}/jdk-8u291-linux-x64.tar.gz"
+
+  tasks:
+  # - name: remove symbolic Java 
+    # command: 'alternatives --remove "java" "{{ java_name }}/bin/java"'
+
+  - name: Remove JDK over
+    ansible.builtin.file: 
+      path: "{{ java_name }}"
+      state: absent
+
+  - name: Remove environment vars JAVA_HOME
+    file: 
+      path: /etc/profile.d/java-home.sh
+      state: absent
+
+  - name: Remove environment var java bin
+    file: 
+      path: /etc/profile.d/java-bin.sh
+      state: absent
+
+  - name: Clean up
+    file: state=absent path={{ java_archive }}

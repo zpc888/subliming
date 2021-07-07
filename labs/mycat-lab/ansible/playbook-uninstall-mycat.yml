@@ -1,0 +1,19 @@
+---
+# ansible-playbook -K playbook-install-mycat.yml
+- hosts: mycat_servers
+  remote_user: root
+# sudo: yes
+  vars:
+    download_folder: /opt
+    mycat_name: "{{download_folder}}/mycat"
+    mycat_archive: "{{download_folder}}/Mycat-server-1.6.7.5-release-20210616151418-linux.tar.gz"
+
+  tasks:
+  - name: Remove MyCat folder
+    file: state=absent path={{mycat_name}}
+
+  - name: Remove environment setup
+    file: state=absent path=/etc/profile.d/mycat-home.sh
+
+  - name: Clean up
+    file: state=absent path={{ mycat_archive }}

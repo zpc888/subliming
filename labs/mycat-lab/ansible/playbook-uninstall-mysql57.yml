@@ -1,0 +1,33 @@
+---
+# ansible-playbook -K playbook-install-mycat.yml
+- hosts: mysql_servers
+  remote_user: root
+# sudo: yes
+
+  tasks:
+    - name: Stop mysql service
+      shell: systemctl stop mysqld
+    
+    - name: Remove MySQL related packages
+      yum: 
+        pkg:
+          - mysql-community-server
+          - mysql-community-client
+          - MySQL-python
+        state: absent
+    
+    # - name: Remove mysql directory
+      # shell: rm -rf /var/lib/mysql
+
+    # - name: Remove ~/.my.cnf
+      # shell: rm -rf /root/.my.cnf
+
+    - name: Remove mysql directory
+      ansible.builtin.file:
+        path: /var/lib/mysql
+        state: absent
+
+    - name: Remove ~/.my.cnf
+      ansible.builtin.file:
+        path: /root/.my.cnf
+        state: absent

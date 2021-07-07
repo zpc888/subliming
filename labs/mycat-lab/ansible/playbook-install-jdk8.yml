@@ -1,0 +1,40 @@
+---
+# ansible-playbook -K playbook-install-jdk8.yml
+- hosts: mycat_servers
+  remote_user: root
+# sudo: yes
+  vars:
+    source_jdk: ../../install-img/jdk-8u291-linux-x64.tar.gz
+    download_folder: /opt
+    java_name: "{{download_folder}}/jdk1.8.0_291"
+    java_archive: "{{download_folder}}/jdk-8u291-linux-x64.tar.gz"
+    env_var: |
+      JAVA_HOME={{ java_name }}
+      PATH=$PATH:$JAVA_HOME/bin
+
+  tasks:
+  - name: Copy JDK over
+    ansible.builtin.copy: 
+      src: "{{ source_jdk }}"
+      dest: "{{ java_archive }}"
+      owner: root
+      group: root
+      mode: u=rw,g=r,o=r
+
+  - name: Unpack archive
+    command: "tar -zxf {{ java_archive }} -C {{ download_folder }} creates={{ java_name }}"
+
+  - name: Fix ownership
+    file: state=directory path={{ java_name }} owner=root group=root recurse=yes
+
+#  - name: Make Java available for system
+#    command: 'alternatives --install "/usr/bin/java" "java" "{{ java_name }}/bin/java" 2000'
+
+  - name: Expose JAVA_HOME and bin/java
+    copy: 
+      dest: /etc/profile.d/java-home.sh
+      content: "{{ env_var }}"
+      mode: u=rw,g=r,o=r
+
+  - name: Clean up
+    file: state=absent path={{ java_archive }}

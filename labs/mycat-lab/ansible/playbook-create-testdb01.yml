@@ -1,0 +1,20 @@
+---
+# ansible-playbook -K playbook-install-mycat.yml
+- hosts: mysql_servers
+  remote_user: root
+# sudo: yes
+
+  tasks:
+    - name: Create a new database name 'testdb01'
+      mysql_db: 
+        name: testdb01
+        state: present
+    - name: Copy database setup script 
+      copy: 
+        src: db_testdb01/setup-scripts/init.sql
+        dest: /tmp
+    - name: Setup database
+      mysql_db: 
+        name: testdb01
+        state: import
+        target: /tmp/init.sql

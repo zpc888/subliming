@@ -1,0 +1,56 @@
+---
+# ansible-playbook -K playbook-install-mycat.yml
+- hosts: mycat_servers
+  remote_user: root
+# sudo: yes
+  vars:
+    source_mycat: ../../install-img/Mycat-server-1.6.7.5-release-20210616151418-linux.tar.gz
+    download_folder: /opt
+    mycat_name: "{{download_folder}}/mycat"
+    mycat_archive: "{{download_folder}}/Mycat-server-1.6.7.5-release-20210616151418-linux.tar.gz"
+    env_var: |
+      MYCAT_HOME={{ mycat_name }}
+      PATH=$PATH:$MYCAT_HOME/bin
+
+  tasks:
+  - name: Copy MyCat over
+    ansible.builtin.copy: 
+      src: "{{ source_mycat }}"
+      dest: "{{ mycat_archive }}"
+      owner: root
+      group: root
+      mode: u=rw,g=r,o=r
+
+  - name: Unpack archive
+    command: "tar -zxf {{ mycat_archive }} -C {{ download_folder }}"
+
+  - name: Fix ownership
+    file: state=directory path={{ mycat_name }} owner=root group=root recurse=yes
+
+  - name: Expose MYCAT_HOME and bin
+    copy: 
+      dest: /etc/profile.d/mycat-home.sh
+      content: "{{ env_var }}"
+      mode: u=rw,g=r,o=r
+
+  - name: Create logs folder
+    file: state=directory path={{ mycat_name }}/logs
+
+  - name: Backup Config files
+    copy: 
+      src: /opt/mycat/conf/{{ item }}
+      dest: /opt/mycat/conf/{{ item }}.orig
+      remote_src: yes
+    with_items: 
+      ['server.xml', 'schema.xml', 'rule.xml']
+
+  - name: Copy Config files Over
+    copy: 
+      src: mycat_conf/{{ item }}
+      dest: /opt/mycat/conf/{{ item }}
+      remote_src: no
+    with_items: 
+      ['server.xml', 'schema.xml', 'rule.xml']
+
+  - name: Clean up
+    file: state=absent path={{ mycat_archive }}
