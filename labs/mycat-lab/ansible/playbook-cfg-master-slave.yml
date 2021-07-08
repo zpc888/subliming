@@ -1,0 +1,52 @@
+---
+- hosts: 10.0.0.101
+  remote_user: root
+# sudo: yes
+
+  tasks:
+    - name: Config master "/etc/my.cnf"
+      lineinfile: 
+        dest: "/etc/my.cnf"
+        insertafter: "{{ item.section }}"
+        state: present
+        line: "{{ item.line }}"
+      with_items:
+        - { section: '^\[mysqld\]', line: 'server-id = 1' }
+        - { section: '^\[mysqld\]', line: 'log-bin = mysql-bin' }
+        - { section: '^\[mysqld\]', line: 'binlog-ignore-db = mysql' }
+        - { section: '^\[mysqld\]', line: 'binlog-ignore-db = information_schema' }
+        - { section: '^\[mysqld\]', line: 'binlog-ignore-db = performance_schema' }
+        - { section: '^\[mysqld\]', line: 'binlog-do-db = testdb01' }
+        - { section: '^\[mysqld\]', line: 'binlog_format = statement' }
+
+# don't know how to save master binlog file and position for slave to use, so run manually
+# grant replication slave on *.* to 'root'@'%' IDENTIFIED BY 'N0Passw0rd!';
+# flush privileges;
+# show master status;
+# stop master;
+# reset master;
+# insert into t1 values (2, @@hostname);    
+# to verify hitting different server, only working when binlog_format=statement
+# systemctl restart mysqld
+
+- hosts: 10.0.0.102
+  remote_user: root
+# sudo: yes
+
+  tasks:
+    - name: Config slave "/etc/my.cnf"
+      lineinfile: 
+        dest: "/etc/my.cnf"
+        insertafter: "{{ item.section }}"
+        state: present
+        line: "{{ item.line }}"
+      with_items:
+        - { section: '^\[mysqld\]', line: 'server-id = 2' }
+        - { section: '^\[mysqld\]', line: 'relay-log = mysql-relay' }
+
+# don't know how to save master binlog file and position in session to use here
+# change master to MASTER_HOST='10.0.0.101', MASTER_USER='root', MASTER_PASSWORD='N0Passw0rd!', MASTER_LOG_FILE='mysql-bin.000001', MASTER_LOG_POS=158
+# start slave
+# show slave status;
+# stop slave;
+# reset slave;

@@ -5,12 +5,13 @@
 	<schema name="TESTDB" checkSQLschema="false" sqlMaxLimit="100" dataNode="dn1">
 	</schema>
 	<dataNode name="dn1" dataHost="localhost1" database="testdb01" />
-	<dataHost name="localhost1" maxCon="1000" minCon="10" balance="0"
+	<!-- balance = 0 all go to writeHost 2 read hits both write and read host randomly -->
+	<dataHost name="localhost1" maxCon="1000" minCon="10" balance="2"
 			  writeType="0" dbType="mysql" dbDriver="native" switchType="1"  slaveThreshold="100">
 		<heartbeat>select user()</heartbeat>
 		<writeHost host="hostM1" url="10.0.0.101:3306" user="root"
 				   password="N0Passw0rd!">
-			<readHost host="hostS1" url="10.0.0.101:3306" user="root"
+			<readHost host="hostS1" url="10.0.0.102:3306" user="root"
 					   password="N0Passw0rd!">
 		    </readHost>
 		</writeHost>

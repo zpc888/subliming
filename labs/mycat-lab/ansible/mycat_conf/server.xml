@@ -7,6 +7,7 @@
 	WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. - See the 
 	License for the specific language governing permissions and - limitations 
 	under the License. -->
+<!-- 9066 admin port  8066 data access port -->
 <!DOCTYPE mycat:server SYSTEM "server.dtd">
 <mycat:server xmlns:mycat="http://io.mycat/">
 	<user name="root" defaultAccount="true">
