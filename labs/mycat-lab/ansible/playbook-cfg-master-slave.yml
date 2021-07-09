@@ -19,7 +19,26 @@
         - { section: '^\[mysqld\]', line: 'binlog-do-db = testdb01' }
         - { section: '^\[mysqld\]', line: 'binlog_format = statement' }
 
-# don't know how to save master binlog file and position for slave to use, so run manually
+    # figure out how to save output in session for downstream usage
+    - name: Restart mysqld after changing /etc/my.cnf
+      command: systemctl restart mysqld
+
+    - name: Grant permissions to replicate
+      command: mysql -Ns -e "grant replication slave on *.* to 'root'@'%' IDENTIFIED BY 'N0Passw0rd!'"
+
+    - name: Colect master status
+      command: mysql -Ns -e "show master status"
+      register: master01Status
+
+    - name: Save master01 status so that other slave can use binlog file name ans pos
+      add_host:
+        name: "master01"
+        masterStatus: "{{ master01Status.stdout.split('\t') }}"
+
+    - name: Restart mysqld after permission changes or run "flush privileges"
+      command: systemctl restart mysqld
+
+# no need manually any more since automated by the above steps
 # grant replication slave on *.* to 'root'@'%' IDENTIFIED BY 'N0Passw0rd!';
 # flush privileges;
 # show master status;
@@ -34,8 +53,13 @@
 # sudo: yes
 
   tasks:
+    - name: Copy master status vars
+      set_fact:
+        master_binlog_filename: "{{ hostvars['master01']['masterStatus'][0] }}"
+        master_binlog_filepos: "{{ hostvars['master01']['masterStatus'][1] }}"
+
     - name: Config slave "/etc/my.cnf"
-      lineinfile: 
+      lineinfile:
         dest: "/etc/my.cnf"
         insertafter: "{{ item.section }}"
         state: present
@@ -43,6 +67,19 @@
       with_items:
         - { section: '^\[mysqld\]', line: 'server-id = 2' }
         - { section: '^\[mysqld\]', line: 'relay-log = mysql-relay' }
+
+    # figure out how to save output in session for downstream usage
+    - name: Restart mysqld after changing /etc/my.cnf
+      command: systemctl restart mysqld
+
+    - name: Change master
+      command: mysql -Ns -e "change master to MASTER_HOST='10.0.0.101', MASTER_USER='root', MASTER_PASSWORD='N0Passw0rd!', MASTER_LOG_FILE='{{ master_binlog_filename }}', MASTER_LOG_POS={{ master_binlog_filepos }}"
+
+    - name: Restart mysqld after following master
+      command: systemctl restart mysqld
+
+    - name: Start slave
+      command: mysql -Ns -e "start slave"
 
 # don't know how to save master binlog file and position in session to use here
 # change master to MASTER_HOST='10.0.0.101', MASTER_USER='root', MASTER_PASSWORD='N0Passw0rd!', MASTER_LOG_FILE='mysql-bin.000001', MASTER_LOG_POS=158

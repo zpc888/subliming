@@ -1,0 +1,34 @@
+---
+- hosts: 10.0.0.101
+  remote_user: root
+
+  tasks:
+    - name: Collect all possible information using passwordless root access
+      mysql_info:
+        login_user: root
+        login_password: N0Passw0rd!
+
+    - name: Collect master status
+      command: mysql -Ns -e "show master status"
+      register: binlogFileName
+
+    - debug: msg="{{ binlogFileName.stdout_lines }}"
+
+    - name: Save master status so that other slave can use binlog file name ans pos
+      add_host:
+        name: "master01"
+        masterStatus: "{{ binlogFileName.stdout.split('\t') }}"
+
+- hosts: 10.0.0.102
+  remote_user: root
+
+  tasks:
+    - debug: msg="{{ hostvars['master01']['masterStatus'][0] }}"
+    - debug: msg="{{ hostvars['master01']['masterStatus'][1] }}"
+
+- hosts: 10.0.0.101
+  remote_user: root
+
+  tasks:
+    - debug: msg="{{ binlogFileName.stdout.split('\t')[0] }}"
+    - debug: msg={{ binlogFileName.stdout.split('\t')[1] }}
