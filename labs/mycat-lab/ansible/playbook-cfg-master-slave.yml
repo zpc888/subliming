@@ -18,6 +18,8 @@
         - { section: '^\[mysqld\]', line: 'binlog-ignore-db = performance_schema' }
         - { section: '^\[mysqld\]', line: 'binlog-do-db = testdb01' }
         - { section: '^\[mysqld\]', line: 'binlog_format = statement' }
+        - { section: '^\[mysqld\]', line: 'log-slave-updates' }       # indicate it is possible slave also CUD
+        # because 10.0.0.1 master is backup by 10.0.0.3, if *.1 is down, *.3 will take over and when *.1 is up, it needs to sync from *.3
 
     # figure out how to save output in session for downstream usage
     - name: Restart mysqld after changing /etc/my.cnf
@@ -87,3 +89,95 @@
 # show slave status;
 # stop slave;
 # reset slave;
+
+- hosts: 10.0.0.103
+  remote_user: root
+  tasks:
+    - name: Config master-02 "/etc/my.cnf"
+      lineinfile:
+        dest: "/etc/my.cnf"
+        insertafter: "{{ item.section }}"
+        state: present
+        line: "{{ item.line }}"
+      with_items:
+        - { section: '^\[mysqld\]', line: 'server-id = 3' }
+        - { section: '^\[mysqld\]', line: 'log-bin = mysql-bin' }
+        - { section: '^\[mysqld\]', line: 'binlog-ignore-db = mysql' }
+        - { section: '^\[mysqld\]', line: 'binlog-ignore-db = information_schema' }
+        - { section: '^\[mysqld\]', line: 'binlog-ignore-db = performance_schema' }
+        - { section: '^\[mysqld\]', line: 'binlog-do-db = testdb01' }
+        - { section: '^\[mysqld\]', line: 'binlog_format = statement' }
+        - { section: '^\[mysqld\]', line: 'log-slave-updates' }       # indicate it is possible slave also CUD
+
+    # figure out how to save output in session for downstream usage
+    - name: Restart mysqld after changing /etc/my.cnf
+      command: systemctl restart mysqld
+
+    - name: Grant permissions to replicate
+      command: mysql -Ns -e "grant replication slave on *.* to 'root'@'%' IDENTIFIED BY 'N0Passw0rd!'"
+
+    - name: Colect master status
+      command: mysql -Ns -e "show master status"
+      register: master02Status
+
+    - name: Save master02 status so that other slave can use binlog file name ans pos
+      add_host:
+        name: "master02"
+        masterStatus: "{{ master02Status.stdout.split('\t') }}"
+
+    - name: Restart mysqld after permission changes or run "flush privileges"
+      command: systemctl restart mysqld
+
+- hosts: 10.0.0.104
+  remote_user: root
+  tasks:
+    - name: Copy master status vars
+      set_fact:
+        master_binlog_filename: "{{ hostvars['master02']['masterStatus'][0] }}"
+        master_binlog_filepos: "{{ hostvars['master02']['masterStatus'][1] }}"
+    - name: Config slave "/etc/my.cnf"
+      lineinfile:
+        dest: "/etc/my.cnf"
+        insertafter: "{{ item.section }}"
+        state: present
+        line: "{{ item.line }}"
+      with_items:
+        - { section: '^\[mysqld\]', line: 'server-id = 4' }
+        - { section: '^\[mysqld\]', line: 'relay-log = mysql-relay' }
+    - name: Restart mysqld after changing /etc/my.cnf
+      command: systemctl restart mysqld
+    - name: Change master
+      command: mysql -Ns -e "change master to MASTER_HOST='10.0.0.103', MASTER_USER='root', MASTER_PASSWORD='N0Passw0rd!', MASTER_LOG_FILE='{{ master_binlog_filename }}', MASTER_LOG_POS={{ master_binlog_filepos }}"
+    - name: Restart mysqld after following master
+      command: systemctl restart mysqld
+    - name: Start slave
+      command: mysql -Ns -e "start slave"
+
+# masters *.101 and *.103 backup each other
+- hosts: 10.0.0.101
+  remote_user: root
+  tasks:
+    - name: Copy master status vars
+      set_fact:
+        master_binlog_filename: "{{ hostvars['master02']['masterStatus'][0] }}"
+        master_binlog_filepos: "{{ hostvars['master02']['masterStatus'][1] }}"
+    - name: Change master
+      command: mysql -Ns -e "change master to MASTER_HOST='10.0.0.103', MASTER_USER='root', MASTER_PASSWORD='N0Passw0rd!', MASTER_LOG_FILE='{{ master_binlog_filename }}', MASTER_LOG_POS={{ master_binlog_filepos }}"
+    - name: Restart mysqld after following master
+      command: systemctl restart mysqld
+    - name: Start slave
+      command: mysql -Ns -e "start slave"
+
+- hosts: 10.0.0.103
+  remote_user: root
+  tasks:
+    - name: Copy master status vars
+      set_fact:
+        master_binlog_filename: "{{ hostvars['master01']['masterStatus'][0] }}"
+        master_binlog_filepos: "{{ hostvars['master01']['masterStatus'][1] }}"
+    - name: Change master
+      command: mysql -Ns -e "change master to MASTER_HOST='10.0.0.101', MASTER_USER='root', MASTER_PASSWORD='N0Passw0rd!', MASTER_LOG_FILE='{{ master_binlog_filename }}', MASTER_LOG_POS={{ master_binlog_filepos }}"
+    - name: Restart mysqld after following master
+      command: systemctl restart mysqld
+    - name: Start slave
+      command: mysql -Ns -e "start slave"

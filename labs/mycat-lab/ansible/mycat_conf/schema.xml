@@ -5,15 +5,28 @@
 	<schema name="TESTDB" checkSQLschema="false" sqlMaxLimit="100" dataNode="dn1">
 	</schema>
 	<dataNode name="dn1" dataHost="localhost1" database="testdb01" />
-	<!-- balance = 0 all go to writeHost 2 read hits both write and read host randomly -->
-	<dataHost name="localhost1" maxCon="1000" minCon="10" balance="2"
+	<!-- balance = 0 all go to writeHost -->
+	<!-- balance = 1 read hits stand-by write and read host -->
+	<!-- balance = 2 read hits both write and read host randomly -->
+	<!-- balance = 3 read hits read host only -->
+
+	<!-- writeType = 0 all writes hit the 1st writeHost, only 1st dies, it hits next first alive writeHost -->
+	<!-- writeType = 1 writes randomly hit all writeHost, discard after v1.5 -->
+
+	<!-- switchType = 0 default value, auto switch -->
+	<!-- switchType = -1 no auto switch -->
+	<!-- switchType = 2 switch is determined based on master-slave sync status -->
+
+	<dataHost name="localhost1" maxCon="1000" minCon="10" balance="1"
 			  writeType="0" dbType="mysql" dbDriver="native" switchType="1"  slaveThreshold="100">
 		<heartbeat>select user()</heartbeat>
-		<writeHost host="hostM1" url="10.0.0.101:3306" user="root"
-				   password="N0Passw0rd!">
-			<readHost host="hostS1" url="10.0.0.102:3306" user="root"
-					   password="N0Passw0rd!">
+		<writeHost host="hostM1" url="10.0.0.101:3306" user="root" password="N0Passw0rd!">
+			<readHost host="hostS1" url="10.0.0.102:3306" user="root" password="N0Passw0rd!">
 		    </readHost>
+		</writeHost>
+		<writeHost host="hostM2" url="10.0.0.103:3306" user="root" password="N0Passw0rd!">
+			<readHost host="hostS2" url="10.0.0.104:3306" user="root" password="N0Passw0rd!">
+			</readHost>
 		</writeHost>
 	</dataHost>
 </mycat:schema>
