@@ -19,6 +19,7 @@
         - { section: '^\[mysqld\]', line: 'binlog-do-db = testdb01' }
         - { section: '^\[mysqld\]', line: 'binlog_format = statement' }
         - { section: '^\[mysqld\]', line: 'log-slave-updates' }       # indicate it is possible slave also CUD
+        - { section: '^\[mysqld\]', line: 'lower_case_table_names=1' }
         # because 10.0.0.1 master is backup by 10.0.0.3, if *.1 is down, *.3 will take over and when *.1 is up, it needs to sync from *.3
 
     # figure out how to save output in session for downstream usage
@@ -69,6 +70,7 @@
       with_items:
         - { section: '^\[mysqld\]', line: 'server-id = 2' }
         - { section: '^\[mysqld\]', line: 'relay-log = mysql-relay' }
+        - { section: '^\[mysqld\]', line: 'lower_case_table_names=1' }
 
     # figure out how to save output in session for downstream usage
     - name: Restart mysqld after changing /etc/my.cnf
@@ -107,7 +109,8 @@
         - { section: '^\[mysqld\]', line: 'binlog-ignore-db = performance_schema' }
         - { section: '^\[mysqld\]', line: 'binlog-do-db = testdb01' }
         - { section: '^\[mysqld\]', line: 'binlog_format = statement' }
-        - { section: '^\[mysqld\]', line: 'log-slave-updates' }       # indicate it is possible slave also CUD
+        - { section: '^\[mysqld\]', line: 'log-slave-updates' }           # indicate it is possible slave also CUD
+        - { section: '^\[mysqld\]', line: 'lower_case_table_names=1' }
 
     # figure out how to save output in session for downstream usage
     - name: Restart mysqld after changing /etc/my.cnf
@@ -144,6 +147,7 @@
       with_items:
         - { section: '^\[mysqld\]', line: 'server-id = 4' }
         - { section: '^\[mysqld\]', line: 'relay-log = mysql-relay' }
+        - { section: '^\[mysqld\]', line: 'lower_case_table_names=1' }
     - name: Restart mysqld after changing /etc/my.cnf
       command: systemctl restart mysqld
     - name: Change master
